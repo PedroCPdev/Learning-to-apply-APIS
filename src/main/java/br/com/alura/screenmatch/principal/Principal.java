@@ -1,102 +1,85 @@
 package br.com.alura.screenmatch.principal;
 
-import br.com.alura.screenmatch.model.DadosEpisodio;
-import br.com.alura.screenmatch.model.DadosSerie;
-import br.com.alura.screenmatch.model.DadosTemporada;
-import br.com.alura.screenmatch.model.Episodio;
+import br.com.alura.screenmatch.model.Dados;
+import br.com.alura.screenmatch.model.DadosVeiculo;
+import br.com.alura.screenmatch.model.Modelos;
 import br.com.alura.screenmatch.service.ConsumoAPI;
 import br.com.alura.screenmatch.service.ConverteDados;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Principal {
     private Scanner scanner = new Scanner(System.in);
     private ConsumoAPI consumoAPI = new ConsumoAPI();
     private ConverteDados converteDados = new ConverteDados();
+    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-    private final String ENDERECO = "https://www.omdbapi.com/?t=;";
-    private final String API_KEY = "&apikey=becabc03";
+    private final String ENDERECO = "https://parallelum.com.br/fipe/api/v1/";
 
     public void exibeMenu() throws JsonProcessingException {
-        System.out.println("Digite o nome da serie para busca: ");
-        var nomeSerie = scanner.nextLine();
+        System.out.println("Qual veiculo deseja buscar?" +
+                "\n1-Carros" +
+                "\n2-Motos" +
+                "\n3-Caminhoes");
 
-        var json = consumoAPI.obterDados(ENDERECO + nomeSerie.replace(" ", "+") + API_KEY);
+        var enderecoBusca = "";
 
-        DadosSerie dados = converteDados.obterDados(json, DadosSerie.class);
-//        System.out.println(dados);
-
-        List<DadosTemporada> temporadas = new ArrayList<>();
-
-        if (dados.totalTemporadas() != null) {
-            for (int i = 1; i <= dados.totalTemporadas(); i++) {
-                json = consumoAPI.obterDados(ENDERECO + nomeSerie.replace(" ", "+") + "&season=" + i + API_KEY);
-                DadosTemporada dadosTemporada = converteDados.obterDados(json, DadosTemporada.class);
-                temporadas.add(dadosTemporada);
-            }
-            temporadas.forEach(System.out::println);
-
-
-            temporadas.forEach(t -> t.episodios().forEach(e -> System.out.println(e.titulo())));
-
-            List<DadosEpisodio> dadosEpisodios = temporadas.stream()
-                    .flatMap(t -> t.episodios().stream()).collect(Collectors.toList());
-
-            List<Episodio> episodios = temporadas.stream()
-                    .flatMap(t -> t.episodios().stream()
-                            .map(d -> new Episodio(t.numero(), d))
-                    ).collect(Collectors.toList());
-
-            episodios.forEach(System.out::println);
-
-//            System.out.println("Digite o titulo do episodio: ");
-//            var trechoTitulo = scanner.nextLine();
-//            Optional<Episodio> episodioBuscado = episodios.stream()
-//                    .filter(e -> e.getTitulo().toUpperCase().contains(trechoTitulo.toUpperCase()))
-//                    .findFirst();
-//
-//            if (episodioBuscado.isPresent()){
-//                System.out.println("Episodio encontrado!");
-//                System.out.println("Temporada: " + episodioBuscado.get().getTemporada());
-//            }
-
-//            System.out.println("top 5");
-//            episodios.stream()
-//                    .filter(e -> !Boolean.parseBoolean(e.getAvaliacao().toString())).sorted(Comparator.comparing(Episodio::getAvaliacao).reversed()).limit(5).forEach(System.out::println);
-
-//            System.out.println("A partir de que ano voce deseja ver os episodios?");
-//            var ano = scanner.nextInt();
-//            scanner.nextLine();
-//
-//            LocalDate dataBusca = LocalDate.of(ano,1, 1);
-//
-//            DateTimeFormatter formatador = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-//            episodios.stream()
-//                    .filter(e -> e.getDataLancamento() != null && e.getDataLancamento().isAfter(dataBusca))
-//                    .forEach(e -> System.out.println(
-//                            "Temporada: " + e.getTemporada() +
-//                                    " Episodio: " + e.getTitulo() +
-//                                    " Data Lancamento: " + e.getDataLancamento().format(formatador)
-//                    ));
-
-//            Map<Integer, Double> avaliacoesPorTemporada = episodios.stream()
-//                    .filter(e -> e.getAvaliacao() > 0.0)
-//                    .collect(Collectors.groupingBy(Episodio::getTemporada,
-//                            Collectors.averagingDouble(Episodio::getAvaliacao)));
-//            System.out.println(avaliacoesPorTemporada);
-
-            DoubleSummaryStatistics est = episodios.stream()
-                    .filter(e -> e.getAvaliacao() > 0)
-                    .collect(Collectors.summarizingDouble(Episodio::getAvaliacao));
-
-            System.out.println("media: " + est.getAverage());
-            System.out.println("Melhor episodio: " + est.getMax());
-            System.out.println("Pior episodio: " + est.getMin());
-            System.out.println("Quantidade: " + est.getCount());
+        switch (scanner.nextInt()){
+            case 1:
+                enderecoBusca = ENDERECO + "carros/marcas";
+                break;
+            case 2:
+                enderecoBusca = ENDERECO + "motos/marcas";
+                break;
+            case 3:
+                enderecoBusca = ENDERECO + "caminhoes/marcas";
+            default:
+                System.out.println("Tipo invalido");
+                break;
         }
+
+        var resposta = consumoAPI.obterDados(enderecoBusca);
+        var dadosMarcas = converteDados.obterLista(resposta, Dados.class);
+
+        dadosMarcas.stream()
+                .sorted(Comparator.comparing(Dados::codigo))
+                .forEach(System.out::println);
+
+        System.out.println("Qual das marcas acima deseja procurar o veiculo?");
+        var marcaBusca = scanner.next();
+
+        enderecoBusca = enderecoBusca + "/" + marcaBusca + "/modelos";
+        resposta = consumoAPI.obterDados(enderecoBusca);
+        var modeloLista = converteDados.obterDados(resposta, Modelos.class);
+
+        System.out.println("Modelos desta marca: ");
+        modeloLista.modelos().stream()
+                .sorted(Comparator.comparing(Dados::codigo))
+                .forEach(System.out::println);
+
+        System.out.println("Qual dos modelos acima deseja procurar?");
+        var modeloBusca = scanner.next();
+
+
+        enderecoBusca = enderecoBusca + "/" + modeloBusca + "/anos";
+        resposta = consumoAPI.obterDados(enderecoBusca);
+        var listaAno = converteDados.obterLista(resposta, Dados.class);
+
+        System.out.println("Qual ano desse modelo deseja procurar: ");
+
+        listaAno.stream()
+                .sorted(Comparator.comparing(Dados::codigo))
+                .forEach(System.out::println);
+
+        var anoModelo = scanner.next();
+
+        enderecoBusca = enderecoBusca + "/" + anoModelo;
+        resposta = consumoAPI.obterDados(enderecoBusca);
+        var info = converteDados.obterDados(resposta, DadosVeiculo.class);
+
+        System.out.println(info);
     }
 }
